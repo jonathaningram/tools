@@ -30,6 +30,91 @@ var tests = []struct {
 	formatOnly bool
 	in, out    string
 }{
+	// Sajari import sections
+	{
+		name: "sajari_sections",
+		in: `package foo
+
+import (
+"cloud.google.com/go/datastore"
+"os"
+"google.golang.org/grpc/codes"
+"go.sajari.com/api"
+taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
+timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+"github.com/google/go-cmp/cmp"
+actpb "code.sajari.com/protogen-go/sajari/autocomplete/v2"
+exppb "code.sajari.com/proto-internal/go/sajari/int/pipeline/v2"
+"github.com/golang/protobuf/proto"
+sajaricomenv "code.sajari.com/sajari.com/pkg/env"
+structpb "github.com/golang/protobuf/ptypes/struct"
+"code.sajari.com/env"
+"golang.org/x/net/context"
+)
+
+func foo () {
+_, _ = os.Args, fmt.Println
+_ = context.Context
+_ = codes.Unimplemented
+_ = datastore.Client
+_ = proto.Message
+_ = env.Var
+_ = api.CID
+_ = exppb.RegisterExperimentServer
+_ = actpb.RegisterQueryServer
+_ = cmp.Equal
+_ = structpb.Struct
+_ = timestamppb.Timestamp
+_ = taskspb.CreateQueueRequest
+_ = sajaricomenv.Get
+}
+`,
+		out: `package foo
+
+import (
+	"fmt"
+	"os"
+
+	"golang.org/x/net/context"
+
+	"google.golang.org/grpc/codes"
+
+	"cloud.google.com/go/datastore"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
+
+	"code.sajari.com/env"
+
+	"go.sajari.com/api"
+
+	sajaricomenv "code.sajari.com/sajari.com/pkg/env"
+
+	exppb "code.sajari.com/proto-internal/go/sajari/int/pipeline/v2"
+	actpb "code.sajari.com/protogen-go/sajari/autocomplete/v2"
+	structpb "github.com/golang/protobuf/ptypes/struct"
+	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+)
+
+func foo() {
+	_, _ = os.Args, fmt.Println
+	_ = context.Context
+	_ = codes.Unimplemented
+	_ = datastore.Client
+	_ = proto.Message
+	_ = env.Var
+	_ = api.CID
+	_ = exppb.RegisterExperimentServer
+	_ = actpb.RegisterQueryServer
+	_ = cmp.Equal
+	_ = structpb.Struct
+	_ = timestamppb.Timestamp
+	_ = taskspb.CreateQueueRequest
+	_ = sajaricomenv.Get
+}
+`,
+	},
 	// Adding an import to an existing parenthesized import
 	{
 		name: "factored_imports_add",

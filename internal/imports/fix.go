@@ -30,33 +30,112 @@ import (
 	"golang.org/x/tools/internal/gopathwalk"
 )
 
+var codeRepos = []string{
+	"api-gateway",
+	"sajari.com",
+}
+
+func isCodeRepoImport(importPath string) bool {
+	for _, r := range codeRepos {
+		if strings.HasPrefix(importPath, fmt.Sprintf("code.sajari.com/%s", r)) {
+			return true
+		}
+	}
+	return false
+}
+
+func isProtoImport(importPath string) bool {
+	return strings.HasPrefix(importPath, "github.com/golang/protobuf/ptypes/struct") ||
+		strings.HasPrefix(importPath, "google.golang.org/protobuf/types") ||
+		strings.HasPrefix(importPath, "google.golang.org/genproto") ||
+		strings.HasPrefix(importPath, "code.sajari.com/proto-internal") ||
+		strings.HasPrefix(importPath, "code.sajari.com/protogen-go") ||
+		strings.HasPrefix(importPath, "code.sajari.com/api-gateway/genproto")
+}
+
+type importToGroupFunc func(localPrefix, importPath string) (num int, ok bool)
+
+func newImportToGroupFunc(prefix string, num int) importToGroupFunc {
+	return func(localPrefix, importPath string) (int, bool) {
+		if strings.HasPrefix(importPath, prefix) {
+			return num, true
+		}
+		return 0, false
+	}
+}
+
+var groups = []string{
+	"golang.org",
+	"google.golang.org",
+	"cloud.google.com",
+	"github.com",
+	"gopkg.in",
+	"bitbucket.org",
+	"go.opencensus.io",
+	"code.sajari.com",
+	"go.sajari.com",
+}
+
+func importToGroupFuncs(start int) []importToGroupFunc {
+	var fns = []importToGroupFunc{}
+	for i, g := range groups {
+		fns = append(fns, newImportToGroupFunc(g, start+i))
+	}
+	return fns
+}
+
 // importToGroup is a list of functions which map from an import path to
 // a group number.
-var importToGroup = []func(localPrefix, importPath string) (num int, ok bool){
-	func(localPrefix, importPath string) (num int, ok bool) {
-		if localPrefix == "" {
-			return
-		}
-		for _, p := range strings.Split(localPrefix, ",") {
-			if strings.HasPrefix(importPath, p) || strings.TrimSuffix(p, "/") == importPath {
-				return 3, true
+var importToGroup = []importToGroupFunc{}
+
+func init() {
+	importToGroup = append(importToGroup,
+		func(_, importPath string) (num int, ok bool) {
+			if isProtoImport(importPath) {
+				return 100, true // proto imports at the end
 			}
-		}
-		return
-	},
-	func(_, importPath string) (num int, ok bool) {
-		if strings.HasPrefix(importPath, "appengine") {
-			return 2, true
-		}
-		return
-	},
-	func(_, importPath string) (num int, ok bool) {
-		firstComponent := strings.Split(importPath, "/")[0]
-		if strings.Contains(firstComponent, ".") {
-			return 1, true
-		}
-		return
-	},
+			return
+		},
+		// Put repo imports before proto imports. Doesn't really work though because
+		// it needs context of what repo this is being run on. Works well enough for
+		// api-gateway and sajari-com repos since they are leaf repos that no other
+		// repos should be importing.
+		func(_, importPath string) (num int, ok bool) {
+			if isCodeRepoImport(importPath) {
+				return 50, true
+			}
+			return
+		},
+	)
+
+	importToGroup = append(importToGroup, importToGroupFuncs(4)...)
+
+	importToGroup = append(importToGroup,
+		func(localPrefix, importPath string) (num int, ok bool) {
+			if localPrefix == "" {
+				return
+			}
+			for _, p := range strings.Split(localPrefix, ",") {
+				if strings.HasPrefix(importPath, p) || strings.TrimSuffix(p, "/") == importPath {
+					return 3, true
+				}
+			}
+			return
+		},
+		func(_, importPath string) (num int, ok bool) {
+			if strings.HasPrefix(importPath, "appengine") {
+				return 2, true
+			}
+			return
+		},
+		func(_, importPath string) (num int, ok bool) {
+			firstComponent := strings.Split(importPath, "/")[0]
+			if strings.Contains(firstComponent, ".") {
+				return 1, true
+			}
+			return
+		},
+	)
 }
 
 func importGroup(localPrefix, importPath string) int {
